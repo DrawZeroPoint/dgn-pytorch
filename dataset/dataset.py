@@ -3,6 +3,9 @@ import numpy as np
 import torch
 from skimage import io, transform
 from torch.utils.data import Dataset
+from torchvision.utils import make_grid
+import numpy.ma as ma
+import matplotlib.colors as cls
 
 
 class Rescale(object):
@@ -77,7 +80,9 @@ class ToTensor(object):
     def __call__(self, sample):
         img_d, img_l, img_r = sample['depth'], sample['left'], sample['right']
 
-        img_dn = torch.from_numpy(img_d.astype(np.float32))  # depth image has no channel
+        norm = cls.Normalize(vmin=0.0, vmax=65535.0)
+        img_dn = ma.getdata(norm(img_d))  # Convert the masked array to ndarray
+        img_dn = torch.from_numpy(img_dn.astype(np.float32))  # depth image has no channel
         img_ln = img_l.astype(np.float32).transpose((2, 0, 1))
         img_rn = img_r.astype(np.float32).transpose((2, 0, 1))
         return {'depth': img_dn.unsqueeze(0),
@@ -135,3 +140,28 @@ class FATDataset(Dataset):
             sample = self.transform(sample)
 
         return sample
+
+
+def normalize_depth(depth):
+    minv = torch.min(depth)
+    rangev = torch.max(depth) - minv
+    if rangev > 0:
+        norm = (depth - minv) / rangev
+    else:
+        norm = torch.zeros(depth.size())
+    return norm.clamp(0., 1.)
+
+
+def custom_save_img(tensor, filename, n_row=10, padding=2):
+    """
+    Saves a given Tensor into an image file.
+    If given a mini-batch tensor, will save the tensor as a grid of images.
+    """
+    from PIL import Image
+    tensor = tensor.cpu()
+    tensor = normalize_depth(tensor)
+    grid = make_grid(tensor, nrow=n_row, padding=padding)
+    nd_arr = grid.mul(255.).byte().transpose(0, 2).transpose(0, 1).numpy()
+    im = Image.fromarray(nd_arr)
+    im.save(filename)
+    return tensor

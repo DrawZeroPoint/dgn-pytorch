@@ -14,9 +14,10 @@ from torch.utils.data import DataLoader
 from torchvision import transforms, utils
 
 from dgn import DepthGenerativeNetwork
+from dataset import custom_save_img
 from dataset import FATDataset, RandomCrop, ToTensor
 
-cuda = False #torch.cuda.is_available()
+cuda = False  # torch.cuda.is_available()
 device = torch.device("cuda:0" if cuda else "cpu")
 
 commit = '0.1'
@@ -100,22 +101,22 @@ if __name__ == '__main__':
                 torch.save(model, "model-{}.pt".format(s))
                 print("model-{}.pt saved.".format(s))
 
-        with torch.no_grad():
-            batch = next(iter(dataloader))
-            img_d = batch['depth'].to(device)
-            img_l = batch['left'].to(device)
-            img_r = batch['right'].to(device)
-            img_cat = torch.cat([img_l, img_r], 1)
+            with torch.no_grad():
+                batch = next(iter(dataloader))
+                img_d = batch['depth'].to(device)
+                img_l = batch['left'].to(device)
+                img_r = batch['right'].to(device)
+                img_cat = torch.cat([img_l, img_r], 1)
 
-            img_d_mu, img_d_q, r, kld = model(img_d, img_cat)
+                img_d_mu, img_d_q, r, kld = model(img_d, img_cat)
 
-            print("|Steps: {}\t|NLL: {}\t|KL: {}\t|".format(s, reconstruction.item(), kl_divergence.item()))
-            utils.custom_save_img(y_q, "query_{}.png".format(s))
-            utils.custom_save_img(y_mu, "recon_{}.png".format(s))
+                print("|Steps: {}\t|NLL: {}\t|KL: {}\t|".format(s, reconstruction.item(), kl_divergence.item()))
+                custom_save_img(y_q, "query_{}.png".format(s))
+                custom_save_img(y_mu, "recon_{}.png".format(s))
 
-            # Anneal learning rate
-            mu = max(mu_f + (mu_i - mu_f) * (1 - s / (1.6 * 10 ** 6)), mu_f)
-            optimizer.lr = mu * math.sqrt(1 - 0.999 ** s) / (1 - 0.9 ** s)
+                # Anneal learning rate
+                mu = max(mu_f + (mu_i - mu_f) * (1 - s / (1.6 * 10 ** 6)), mu_f)
+                optimizer.lr = mu * math.sqrt(1 - 0.999 ** s) / (1 - 0.9 ** s)
 
-            # Anneal pixel variance
-            sigma = max(sigma_f + (sigma_i - sigma_f) * (1 - s / (2 * 10 ** 5)), sigma_f)
+                # Anneal pixel variance
+                sigma = max(sigma_f + (sigma_i - sigma_f) * (1 - s / (2 * 10 ** 5)), sigma_f)
