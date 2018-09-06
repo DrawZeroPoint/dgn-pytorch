@@ -80,9 +80,8 @@ class ToTensor(object):
     def __call__(self, sample):
         img_d, img_l, img_r = sample['depth'], sample['left'], sample['right']
 
-        norm = cls.Normalize(vmin=0.0, vmax=65535.0)
-        img_dn = ma.getdata(norm(img_d))  # Convert the masked array to ndarray
-        img_dn = torch.from_numpy(img_dn.astype(np.float32))  # depth image has no channel
+        img_dn = torch.from_numpy(img_d.astype(np.float32))  # depth image has no channel
+        img_dn = normalize_depth(img_dn)
         img_ln = img_l.astype(np.float32).transpose((2, 0, 1))
         img_rn = img_r.astype(np.float32).transpose((2, 0, 1))
         return {'depth': img_dn.unsqueeze(0),
@@ -152,7 +151,7 @@ def normalize_depth(depth):
     return norm.clamp(0., 1.)
 
 
-def custom_save_img(tensor, filename, n_row=10, padding=2):
+def custom_save_img(tensor, filename, n_row=8, padding=2):
     """
     Saves a given Tensor into an image file.
     If given a mini-batch tensor, will save the tensor as a grid of images.

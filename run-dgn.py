@@ -20,11 +20,11 @@ from dataset import FATDataset, RandomCrop, ToTensor
 cuda = torch.cuda.is_available()
 device = torch.device("cuda:0" if cuda else "cpu")
 
-commit = '0.2'
+commit = '0.21'
 data_dir = './dataset/fat_s-torch'
 save_dir = './log-{}'.format(commit)
 fine_tune = 'none'
-batch_size = 1
+batch_size = 8
 crop_size = 240
 
 data_parallel = False
