@@ -11,17 +11,18 @@ import torch
 import torch.nn as nn
 from torch.distributions import Normal
 from torch.utils.data import DataLoader
-from torchvision import transforms, utils
+from torchvision import transforms
 
 from dgn import DepthGenerativeNetwork
 from dataset import custom_save_img
 from dataset import FATDataset, RandomCrop, ToTensor
 
-cuda = False  # torch.cuda.is_available()
+cuda = torch.cuda.is_available()
 device = torch.device("cuda:0" if cuda else "cpu")
 
-commit = '0.1'
+commit = '0.2'
 data_dir = './dataset/fat_s-torch'
+save_dir = './log-{}'.format(commit)
 fine_tune = 'none'
 batch_size = 1
 crop_size = 240
@@ -36,7 +37,7 @@ if __name__ == '__main__':
           " - batch_size: {}\n"
           " - corp_size: {}\n".format(commit, data_dir, fine_tune, batch_size, crop_size))
 
-    fat_dataset = FATDataset("/home/dong/dgn-pytorch/dataset/fat",
+    fat_dataset = FATDataset("./dataset/fat",
                              "train", trans=transforms.Compose([RandomCrop(crop_size), ToTensor()]))
 
     dataloader = DataLoader(fat_dataset, batch_size, shuffle=True, num_workers=4)
@@ -47,6 +48,9 @@ if __name__ == '__main__':
     # Learning rate
     mu_f, mu_i = 5*10**(-5), 5*10**(-4)
     mu, sigma = mu_f, sigma_f
+
+    if not os.path.exists(save_dir):
+        os.mkdir(save_dir)
 
     model_path = os.path.join(".", fine_tune)
     if os.path.exists(model_path):
@@ -70,7 +74,7 @@ if __name__ == '__main__':
             torch.save(model, "model-final.pt")
             break
 
-        for i_batch, batch in enumerate(dataloader):
+        for _, batch in enumerate(dataloader):
             img_d = batch['depth'].to(device)
             img_l = batch['left'].to(device)
             img_r = batch['right'].to(device)
@@ -96,27 +100,27 @@ if __name__ == '__main__':
 
             s += 1
 
-            # Keep a checkpoint every 100,0 steps
+            # Keep a checkpoint every 100 steps
             if s % (gradient_steps/100) == 0:
-                torch.save(model, "model-{}.pt".format(s))
+                torch.save(model, os.path.join(save_dir, "model-{}.pt".format(s)))
                 print("model-{}.pt saved.".format(s))
 
-            with torch.no_grad():
-                batch = next(iter(dataloader))
-                img_d = batch['depth'].to(device)
-                img_l = batch['left'].to(device)
-                img_r = batch['right'].to(device)
-                img_cat = torch.cat([img_l, img_r], 1)
+                with torch.no_grad():
+                    batch = next(iter(dataloader))
+                    img_d = batch['depth'].to(device)
+                    img_l = batch['left'].to(device)
+                    img_r = batch['right'].to(device)
+                    img_cat = torch.cat([img_l, img_r], 1)
 
-                img_d_mu, img_d_q, r, kld = model(img_d, img_cat)
+                    img_d_mu, img_d_q, kld = model(img_d, img_cat)
 
-                print("|Steps: {}\t|NLL: {}\t|KL: {}\t|".format(s, reconstruction.item(), kl_divergence.item()))
-                custom_save_img(y_q, "query_{}.png".format(s))
-                custom_save_img(y_mu, "recon_{}.png".format(s))
+                    print("|Steps: {}\t|NLL: {}\t|KL: {}\t|".format(s, reconstruction.item(), kl_divergence.item()))
+                    img_show = torch.cat([img_d_q, img_d_mu], 0)
+                    custom_save_img(img_show, os.path.join(save_dir, "result_{}.png".format(s)))
 
-                # Anneal learning rate
-                mu = max(mu_f + (mu_i - mu_f) * (1 - s / (1.6 * 10 ** 6)), mu_f)
-                optimizer.lr = mu * math.sqrt(1 - 0.999 ** s) / (1 - 0.9 ** s)
+                    # Anneal learning rate
+                    mu = max(mu_f + (mu_i - mu_f) * (1 - s / (1.6 * 10 ** 6)), mu_f)
+                    optimizer.lr = mu * math.sqrt(1 - 0.999 ** s) / (1 - 0.9 ** s)
 
-                # Anneal pixel variance
-                sigma = max(sigma_f + (sigma_i - sigma_f) * (1 - s / (2 * 10 ** 5)), sigma_f)
+                    # Anneal pixel variance
+                    sigma = max(sigma_f + (sigma_i - sigma_f) * (1 - s / (2 * 10 ** 5)), sigma_f)
