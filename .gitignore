@@ -1,0 +1,8 @@
+.idea/
+fat_dataset/fat*
+__p*
+*.pt
+*.jpg
+*.png
+.thumbnails/
+*.npy
