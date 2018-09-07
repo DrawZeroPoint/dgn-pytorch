@@ -37,10 +37,10 @@ if __name__ == '__main__':
           " - batch_size: {}\n"
           " - corp_size: {}\n".format(commit, data_dir, fine_tune, batch_size, crop_size))
 
-    fat_dataset = FATDataset("./dataset/fat",
-                             "train", trans=transforms.Compose([RandomCrop(crop_size), ToTensor()]))
+    train_set = FATDataset("./dataset/fat", "train",
+                           trans=transforms.Compose([RandomCrop(crop_size), ToTensor()]))
 
-    dataloader = DataLoader(fat_dataset, batch_size, shuffle=True, num_workers=4)
+    dataloader = DataLoader(train_set, batch_size, shuffle=True, num_workers=4)
 
     # Pixel variance
     sigma_f, sigma_i = 0.7, 2.0

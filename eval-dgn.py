@@ -1,40 +1,44 @@
 import numpy as np
-import argparse
 import torch
 import torch.nn as nn
+from torchvision import transforms
+
 import os
-from fat_dataset import load_dataset, utils
-from torch.distributions import Normal
-import torch.nn.modules.loss as loss
+from dataset import custom_save_img, FATDataset, RandomCrop, ToTensor
+from torch.utils.data import DataLoader
+
 
 cuda = torch.cuda.is_available()
-device = torch.device("cuda:0" if cuda else "cpu")
+device = torch.device("cuda:1" if cuda else "cpu")
+
+commit = '0.21'
+data_dir = './dataset/fat_s-torch'
+save_dir = './log-{}'.format(commit)
+model = '25000'
+batch_size = 1
+crop_size = 240
+
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Depth Generative Network on Falling Things fat_dataset')
-    parser.add_argument('--data_dir', type=str, help='location of npy test data', default="./fat_dataset/fat_s-torch")
+    test_set = FATDataset("./dataset/fat", "test",
+                          trans=transforms.Compose([RandomCrop(crop_size), ToTensor()]))
 
-    args = parser.parse_args()
+    dataloader = DataLoader(test_set, batch_size, shuffle=True, num_workers=4)
 
-    test_set = load_dataset.Fat(args.data_dir, 'train', c_st=4, batch_size=20, seq_num=10, b_st=0)
-
-    model_path = os.path.join(".", "model-95000.pt")
+    model_path = os.path.join(save_dir, "model-{}.pt".format(model))
     model = torch.load(model_path, map_location=lambda storage, _: storage).to(device)
     if type(model) is nn.DataParallel:
         model = model.module
 
-    test_set.load_new()
+    for i, batch in enumerate(dataloader):
+        img_d = batch['depth'].to(device)
+        img_l = batch['left'].to(device)
+        img_r = batch['right'].to(device)
+        img_cat = torch.cat([img_l, img_r], 1)
 
-    for i in range(10):
-        d, c, v = test_set.get_batch()
-        d = d.to(device)
-        c = c.to(device)
-        v = v.to(device)
+        img_d_mu, img_d_q, kld = model(img_d, img_cat)
 
-        y_mu, y_q, r, kld = model(d, c, v)
-        subfix = f"0.26train{i}"
-        tq = utils.custom_save_img(y_q, f"test_q_{subfix}.png")
-        tr = utils.custom_save_img(y_mu, f"test_r_{subfix}.png")
-
-        # elbo = reconstruction + kl_divergence
-        # print("elbo: {}, ls: {}".format(elbo, ls.item()))
+        img_show = torch.cat([img_d_q, img_d_mu], 0)
+        custom_save_img(img_show, os.path.join(save_dir, "test_{}.png".format(i)))
+        if i == 10:
+            break
