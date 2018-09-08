@@ -16,11 +16,13 @@ from torchvision import transforms
 from dgn import DepthGenerativeNetwork
 from dataset import custom_save_img
 from dataset import FATDataset, RandomCrop, ToTensor
+import pendulum
+
 
 cuda = torch.cuda.is_available()
-device = torch.device("cuda:0" if cuda else "cpu")
+device = torch.device("cuda:1" if cuda else "cpu")
 
-commit = '0.31'
+commit = '0.4'
 save_dir = './log-{}'.format(commit)
 fine_tune = 'none'
 batch_size = 8
@@ -34,6 +36,8 @@ if __name__ == '__main__':
           " - fine_tune model: {}\n"
           " - batch_size: {}\n"
           " - corp_size: {}\n".format(commit, fine_tune, batch_size, crop_size))
+
+    print(pendulum.now())
 
     train_set = FATDataset("./dataset/fat", "train",
                            trans=transforms.Compose([RandomCrop(crop_size), ToTensor()]))
@@ -70,6 +74,7 @@ if __name__ == '__main__':
     while True:
         if s >= gradient_steps:
             torch.save(model, "model-final.pt")
+            print(pendulum.now())
             break
 
         for _, batch in enumerate(dataloader):
@@ -99,27 +104,19 @@ if __name__ == '__main__':
             s += 1
 
             # Keep a checkpoint every 100 steps
-            if s % (gradient_steps/100) == 0:
-                if s % (gradient_steps / 10) == 0:
-                    torch.save(model, os.path.join(save_dir, "model-{}.pt".format(s)))
-                    print("model-{}.pt saved.".format(s))
+            if s % (gradient_steps / 10) == 0:
+                torch.save(model, os.path.join(save_dir, "model-{}.pt".format(s)))
+                print("model-{}.pt saved.".format(s))
 
-                with torch.no_grad():
-                    batch = next(iter(dataloader))
-                    img_d = batch['depth'].to(device)
-                    img_l = batch['left'].to(device)
-                    img_r = batch['right'].to(device)
-                    img_cat = torch.cat([img_l, img_r], 1)
-
-                    img_d_mu, img_d_q, kld = model(img_d, img_cat)
-
+            with torch.no_grad():
+                if s % (gradient_steps / 100) == 0:
                     print("|Steps: {}\t|NLL: {}\t|KL: {}\t|".format(s, reconstruction.item(), kl_divergence.item()))
                     img_show = torch.cat([img_d_q, img_d_mu], 0)
                     custom_save_img(img_show, os.path.join(save_dir, "result_{}.png".format(s)))
 
-                    # Anneal learning rate
-                    mu = max(mu_f + (mu_i - mu_f) * (1 - s / (1.6 * 10 ** 6)), mu_f)
-                    optimizer.lr = mu * math.sqrt(1 - 0.999 ** s) / (1 - 0.9 ** s)
+                # Anneal learning rate
+                mu = max(mu_f + (mu_i - mu_f) * (1 - s / (1.6 * 10 ** 6)), mu_f)
+                optimizer.lr = mu * math.sqrt(1 - 0.999 ** s) / (1 - 0.9 ** s)
 
-                    # Anneal pixel variance
-                    sigma = max(sigma_f + (sigma_i - sigma_f) * (1 - s / (2 * 10 ** 5)), sigma_f)
+                # Anneal pixel variance
+                sigma = max(sigma_f + (sigma_i - sigma_f) * (1 - s / (2 * 10 ** 5)), sigma_f)
