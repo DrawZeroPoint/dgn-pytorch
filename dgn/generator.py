@@ -151,9 +151,9 @@ class GeneratorNetwork(nn.Module):
             # Calculate KL-divergence
             kl += kl_divergence(posterior_distribution, prior_distribution)
 
-        x_mu = self.observation_density(u)
+        y_mu = self.observation_density(u)
 
-        return x_mu, kl
+        return torch.sigmoid(y_mu), kl
 
     def sample(self, r):
         """
@@ -164,10 +164,12 @@ class GeneratorNetwork(nn.Module):
         batch_size, h, w = r.size()[0], r.size()[2], r.size()[3]
 
         # Reset hidden and cell state for generator
-        hidden_g = v.new_zeros((batch_size, self.h_dim, h, w))
-        cell_g = v.new_zeros((batch_size, self.h_dim, h, w))
+        device = torch.device("cuda:1")
 
-        u = v.new_zeros((batch_size, self.h_dim, h * SCALE, w * SCALE))
+        hidden_g = torch.zeros((batch_size, self.h_dim, h, w)).to(device)
+        cell_g = torch.zeros((batch_size, self.h_dim, h, w)).to(device)
+
+        u = torch.zeros((batch_size, self.h_dim, h * SCALE, w * SCALE)).to(device)
 
         for _ in range(self.L):
             o = self.prior_density(hidden_g)
@@ -181,6 +183,6 @@ class GeneratorNetwork(nn.Module):
             hidden_g, cell_g = self.generator_core(torch.cat([z, r], dim=1), [hidden_g, cell_g])
             u = self.upsample(hidden_g) + u
 
-        x_mu = self.observation_density(u)
+        y_mu = self.observation_density(u)
 
-        return F.sigmoid(x_mu)
+        return torch.sigmoid(y_mu)

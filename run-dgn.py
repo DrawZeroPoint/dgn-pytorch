@@ -20,27 +20,25 @@ from dataset import FATDataset, RandomCrop, ToTensor
 cuda = torch.cuda.is_available()
 device = torch.device("cuda:0" if cuda else "cpu")
 
-commit = '0.21'
-data_dir = './dataset/fat_s-torch'
+commit = '0.25'
 save_dir = './log-{}'.format(commit)
 fine_tune = 'none'
 batch_size = 8
 crop_size = 240
 
 data_parallel = False
-gradient_steps = 100000
+gradient_steps = 50000
 
 if __name__ == '__main__':
     print(" - Train id: {}\n"
-          " - data_dir: {}\n"
           " - fine_tune model: {}\n"
           " - batch_size: {}\n"
-          " - corp_size: {}\n".format(commit, data_dir, fine_tune, batch_size, crop_size))
+          " - corp_size: {}\n".format(commit, fine_tune, batch_size, crop_size))
 
     train_set = FATDataset("./dataset/fat", "train",
                            trans=transforms.Compose([RandomCrop(crop_size), ToTensor()]))
 
-    dataloader = DataLoader(train_set, batch_size, shuffle=True, num_workers=4)
+    dataloader = DataLoader(train_set, batch_size, shuffle=True, num_workers=2)
 
     # Pixel variance
     sigma_f, sigma_i = 0.7, 2.0
@@ -101,7 +99,7 @@ if __name__ == '__main__':
             s += 1
 
             # Keep a checkpoint every 100 steps
-            if s % (gradient_steps/100) == 0:
+            if s % (gradient_steps/10000) == 0:
                 torch.save(model, os.path.join(save_dir, "model-{}.pt".format(s)))
                 print("model-{}.pt saved.".format(s))
 

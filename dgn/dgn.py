@@ -42,7 +42,7 @@ class DepthGenerativeNetwork(nn.Module):
         # for computing error
         return [y_mu, y_q, kl]
 
-    def sample(self, rgb_cat, sigma):
+    def sample(self, rgb_cat, sigma=2.0):
         """
         Sample from the network given some context and viewpoint.
         :param rgb_cat: batch of color images [b, 6, h, w]
@@ -50,5 +50,4 @@ class DepthGenerativeNetwork(nn.Module):
         """
         phi = self.representation(rgb_cat)
         y_mu = self.generator.sample(phi)
-        y_sample = Normal(y_mu, sigma).sample()
-        return y_sample
+        return y_mu

@@ -141,13 +141,18 @@ class FATDataset(Dataset):
 
 
 def normalize_depth(depth):
-    minv = torch.min(depth)
-    rangev = torch.max(depth) - minv
-    if rangev > 0:
-        norm = (depth - minv) / rangev
+    """
+    Normalize the uint16 depth into range [-0.5, 0.5]
+    :param depth: input depth image
+    :return: normalized depth image
+    """
+    v_min = torch.min(depth)
+    v_range = torch.max(depth) - v_min
+    if v_range > 0:
+        norm = (depth - v_min) / v_range - 0.5
     else:
         norm = torch.zeros(depth.size())
-    return norm.clamp(0., 1.)
+    return norm
 
 
 def custom_save_img(tensor, filename, n_row=8, padding=2):
@@ -159,7 +164,7 @@ def custom_save_img(tensor, filename, n_row=8, padding=2):
     tensor = tensor.cpu()
     tensor = normalize_depth(tensor)
     grid = make_grid(tensor, nrow=n_row, padding=padding)
-    nd_arr = grid.mul(255.).byte().transpose(0, 2).transpose(0, 1).numpy()
+    nd_arr = grid.add(0.5).mul(255.).byte().transpose(0, 2).transpose(0, 1).numpy()
     # nd_arr = cv2.applyColorMap(nd_arr, cv2.COLORMAP_PARULA)
     im = Image.fromarray(nd_arr)
     im.save(filename)
