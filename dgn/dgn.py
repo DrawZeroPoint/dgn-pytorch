@@ -35,16 +35,20 @@ class DepthGenerativeNetwork(nn.Module):
         # B 256 120 120
         phi = self.representation(rgb_cat)
 
-        # Separate batch and view dimensions
-        # _, *phi_dims = phi.size()
-        # phi = phi.view((batch_size, n_views, *phi_dims))
-        #
-        # # sum over view representations
-        # r = torch.sum(phi, dim=1)
-
         y_q = depth
         y_mu, kl = self.generator(y_q, phi)
 
         # Return reconstruction and query viewpoint
         # for computing error
         return [y_mu, y_q, kl]
+
+    def sample(self, rgb_cat, sigma):
+        """
+        Sample from the network given some context and viewpoint.
+        :param rgb_cat: batch of color images [b, 6, h, w]
+        :param sigma: pixel variance
+        """
+        phi = self.representation(rgb_cat)
+        y_mu = self.generator.sample(phi)
+        y_sample = Normal(y_mu, sigma).sample()
+        return y_sample

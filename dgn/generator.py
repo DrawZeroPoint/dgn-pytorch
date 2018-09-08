@@ -154,3 +154,33 @@ class GeneratorNetwork(nn.Module):
         x_mu = self.observation_density(u)
 
         return x_mu, kl
+
+    def sample(self, r):
+        """
+        Sample from the prior distribution to generate
+        a new image given a viewpoint and representation
+        :param r: representation (context)
+        """
+        batch_size, h, w = r.size()[0], r.size()[2], r.size()[3]
+
+        # Reset hidden and cell state for generator
+        hidden_g = v.new_zeros((batch_size, self.h_dim, h, w))
+        cell_g = v.new_zeros((batch_size, self.h_dim, h, w))
+
+        u = v.new_zeros((batch_size, self.h_dim, h * SCALE, w * SCALE))
+
+        for _ in range(self.L):
+            o = self.prior_density(hidden_g)
+            p_mu, p_log_std = torch.split(o, self.z_dim, dim=1)
+            prior_distribution = Normal(p_mu, F.softplus(p_log_std))
+
+            # Prior sample
+            z = prior_distribution.sample()
+
+            # Calculate u rz or zr ?
+            hidden_g, cell_g = self.generator_core(torch.cat([z, r], dim=1), [hidden_g, cell_g])
+            u = self.upsample(hidden_g) + u
+
+        x_mu = self.observation_density(u)
+
+        return F.sigmoid(x_mu)
