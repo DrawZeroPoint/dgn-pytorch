@@ -71,7 +71,6 @@ class GeneratorNetwork(nn.Module):
     over a number of iterations.
 
     :param y_dim: number of channels in input depth image
-    :param v_dim: dimensions of viewpoint
     :param r_dim: dimensions of representation
     :param z_dim: latent channels
     :param h_dim: hidden channels in LSTM

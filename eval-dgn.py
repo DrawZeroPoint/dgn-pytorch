@@ -12,9 +12,8 @@ cuda = torch.cuda.is_available()
 device = torch.device("cuda:1" if cuda else "cpu")
 
 commit = '0.21'
-data_dir = './dataset/fat_s-torch'
 save_dir = './log-{}'.format(commit)
-model = '25000'
+model = '45000'
 batch_size = 1
 crop_size = 240
 

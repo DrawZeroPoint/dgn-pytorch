@@ -4,8 +4,7 @@ import torch
 from skimage import io, transform
 from torch.utils.data import Dataset
 from torchvision.utils import make_grid
-import numpy.ma as ma
-import matplotlib.colors as cls
+import cv2
 
 
 class Rescale(object):
@@ -161,6 +160,6 @@ def custom_save_img(tensor, filename, n_row=8, padding=2):
     tensor = normalize_depth(tensor)
     grid = make_grid(tensor, nrow=n_row, padding=padding)
     nd_arr = grid.mul(255.).byte().transpose(0, 2).transpose(0, 1).numpy()
+    # nd_arr = cv2.applyColorMap(nd_arr, cv2.COLORMAP_PARULA)
     im = Image.fromarray(nd_arr)
     im.save(filename)
-    return tensor
