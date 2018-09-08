@@ -163,13 +163,10 @@ class GeneratorNetwork(nn.Module):
         """
         batch_size, h, w = r.size()[0], r.size()[2], r.size()[3]
 
-        # Reset hidden and cell state for generator
-        device = torch.device("cuda:1")
+        hidden_g = torch.zeros((batch_size, self.h_dim, h, w))
+        cell_g = torch.zeros((batch_size, self.h_dim, h, w))
 
-        hidden_g = torch.zeros((batch_size, self.h_dim, h, w)).to(device)
-        cell_g = torch.zeros((batch_size, self.h_dim, h, w)).to(device)
-
-        u = torch.zeros((batch_size, self.h_dim, h * SCALE, w * SCALE)).to(device)
+        u = torch.zeros((batch_size, self.h_dim, h * SCALE, w * SCALE))
 
         for _ in range(self.L):
             o = self.prior_density(hidden_g)

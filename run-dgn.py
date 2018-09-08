@@ -20,7 +20,7 @@ from dataset import FATDataset, RandomCrop, ToTensor
 cuda = torch.cuda.is_available()
 device = torch.device("cuda:0" if cuda else "cpu")
 
-commit = '0.25'
+commit = '0.31'
 save_dir = './log-{}'.format(commit)
 fine_tune = 'none'
 batch_size = 8
@@ -99,9 +99,10 @@ if __name__ == '__main__':
             s += 1
 
             # Keep a checkpoint every 100 steps
-            if s % (gradient_steps/10000) == 0:
-                torch.save(model, os.path.join(save_dir, "model-{}.pt".format(s)))
-                print("model-{}.pt saved.".format(s))
+            if s % (gradient_steps/100) == 0:
+                if s % (gradient_steps / 10) == 0:
+                    torch.save(model, os.path.join(save_dir, "model-{}.pt".format(s)))
+                    print("model-{}.pt saved.".format(s))
 
                 with torch.no_grad():
                     batch = next(iter(dataloader))
