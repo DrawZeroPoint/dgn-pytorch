@@ -12,6 +12,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Normal, kl_divergence
+from dataset import normalize_depth
 
 SCALE = 4  # Scale of image generation process
 
@@ -98,16 +99,15 @@ class GeneratorNetwork(nn.Module):
         self.upsample = nn.ConvTranspose2d(h_dim, h_dim, kernel_size=SCALE, stride=SCALE, padding=0)
         self.downsample = nn.Conv2d(y_dim, y_dim, kernel_size=SCALE, stride=SCALE, padding=0)
 
-    def forward(self, y, r):
+    def forward(self, d, r):
         """
-        Attempt to reconstruct y with corresponding
-        viewpoint v and context representation r.
+        Attempt to reconstruct d with corresponding context representation r.
 
-        :param y: depth image to send through
+        :param d: depth image to send through
         :param r: representation for image
-        :return reconstruction of x and kl-divergence
+        :return mean of distribution that generate d and kl-divergence
         """
-        batch_size, _, h, w = y.size()
+        batch_size, _, h, w = d.size()
         kl = 0
 
         # Increase dimensions
@@ -115,16 +115,16 @@ class GeneratorNetwork(nn.Module):
             r = r.repeat(1, 1, h // SCALE, w // SCALE)
 
         # Reset hidden state
-        hidden_g = y.new_zeros((batch_size, self.h_dim, h // SCALE, w // SCALE))
-        hidden_i = y.new_zeros((batch_size, self.h_dim, h // SCALE, w // SCALE))
+        hidden_g = d.new_zeros((batch_size, self.h_dim, h // SCALE, w // SCALE))
+        hidden_i = d.new_zeros((batch_size, self.h_dim, h // SCALE, w // SCALE))
 
         # Reset cell state
-        cell_g = y.new_zeros((batch_size, self.h_dim, h // SCALE, w // SCALE))
-        cell_i = y.new_zeros((batch_size, self.h_dim, h // SCALE, w // SCALE))
+        cell_g = d.new_zeros((batch_size, self.h_dim, h // SCALE, w // SCALE))
+        cell_i = d.new_zeros((batch_size, self.h_dim, h // SCALE, w // SCALE))
 
-        u = y.new_zeros((batch_size, self.h_dim, h, w))
+        u = d.new_zeros((batch_size, self.h_dim, h, w))
 
-        y = self.downsample(y)
+        d = self.downsample(d)
 
         for _ in range(self.L):
             # Prior factor (eta π network)
@@ -134,7 +134,7 @@ class GeneratorNetwork(nn.Module):
             prior_distribution = Normal(p_mu, F.softplus(p_std))
 
             # Inference state update
-            hidden_i, cell_i = self.inference_core(torch.cat([hidden_g, y, r], dim=1), [hidden_i, cell_i])
+            hidden_i, cell_i = self.inference_core(torch.cat([r, hidden_g, d], dim=1), [hidden_i, cell_i])
 
             # Posterior factor (eta e network)
             o = self.posterior_density(hidden_i)
@@ -145,7 +145,7 @@ class GeneratorNetwork(nn.Module):
             z = posterior_distribution.rsample()
 
             # Calculate u
-            hidden_g, cell_g = self.generator_core(torch.cat([z, r], dim=1), [hidden_g, cell_g])
+            hidden_g, cell_g = self.generator_core(torch.cat([r, z], dim=1), [hidden_g, cell_g])
             u = self.upsample(hidden_g) + u
 
             # Calculate KL-divergence
@@ -153,7 +153,7 @@ class GeneratorNetwork(nn.Module):
 
         y_mu = self.observation_density(u)
 
-        return torch.sigmoid(y_mu), kl
+        return normalize_depth(y_mu), kl
 
     def sample(self, r):
         """
@@ -163,10 +163,10 @@ class GeneratorNetwork(nn.Module):
         """
         batch_size, h, w = r.size()[0], r.size()[2], r.size()[3]
 
-        hidden_g = torch.zeros((batch_size, self.h_dim, h, w))
-        cell_g = torch.zeros((batch_size, self.h_dim, h, w))
-
-        u = torch.zeros((batch_size, self.h_dim, h * SCALE, w * SCALE))
+        device = torch.device("cuda:1")
+        hidden_g = torch.zeros((batch_size, self.h_dim, h, w)).to(device)
+        cell_g = torch.zeros((batch_size, self.h_dim, h, w)).to(device)
+        u = torch.zeros((batch_size, self.h_dim, h * SCALE, w * SCALE)).to(device)
 
         for _ in range(self.L):
             o = self.prior_density(hidden_g)
@@ -182,4 +182,4 @@ class GeneratorNetwork(nn.Module):
 
         y_mu = self.observation_density(u)
 
-        return torch.sigmoid(y_mu)
+        return y_mu

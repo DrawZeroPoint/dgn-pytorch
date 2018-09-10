@@ -11,11 +11,11 @@ import torch
 import torch.nn as nn
 from torch.distributions import Normal
 from torch.utils.data import DataLoader
-from torchvision import transforms
+from torchvision.transforms import Compose
 
 from dgn import DepthGenerativeNetwork
 from dataset import custom_save_img
-from dataset import FATDataset, RandomCrop, ToTensor
+from dataset import FATDataset, Rescale, RandomCrop, ToTensor
 import pendulum
 
 
@@ -40,7 +40,7 @@ if __name__ == '__main__':
     print(pendulum.now())
 
     train_set = FATDataset("./dataset/fat", "train",
-                           trans=transforms.Compose([RandomCrop(crop_size), ToTensor()]))
+                           trans=Compose([RandomCrop(crop_size), Rescale(crop_size), ToTensor()]))
 
     dataloader = DataLoader(train_set, batch_size, shuffle=True, num_workers=2)
 
@@ -109,9 +109,9 @@ if __name__ == '__main__':
                 print("model-{}.pt saved.".format(s))
 
             with torch.no_grad():
-                if s % (gradient_steps / 100) == 0:
+                if s % (gradient_steps / 10000) == 0:
                     print("|Steps: {}\t|NLL: {}\t|KL: {}\t|".format(s, reconstruction.item(), kl_divergence.item()))
-                    img_show = torch.cat([img_d_q, img_d_mu], 0)
+                    img_show = torch.cat([img_d_q.mul(255.0), img_d_mu.mul(255.0)], 0)
                     custom_save_img(img_show, os.path.join(save_dir, "result_{}.png".format(s)))
 
                 # Anneal learning rate

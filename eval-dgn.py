@@ -13,7 +13,7 @@ device = torch.device("cuda:1" if cuda else "cpu")
 
 commit = '0.21'
 save_dir = './log-{}'.format(commit)
-model = '45000'
+model = '40000'
 batch_size = 1
 crop_size = 240
 

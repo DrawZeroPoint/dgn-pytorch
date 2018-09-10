@@ -1,10 +1,45 @@
 import os
 import numpy as np
 import torch
-from skimage import io, transform
+from skimage import io
 from torch.utils.data import Dataset
 from torchvision.utils import make_grid
 import cv2
+
+d1 = 0.0039215686
+d2 = 0.000015259
+
+
+class RandomCrop(object):
+    """Crop randomly the image in a sample.
+
+    Args:
+        output_size (tuple or int): Desired output size. If int, square crop
+            is made.
+    """
+
+    def __init__(self, output_size):
+        assert isinstance(output_size, (int, tuple))
+        if isinstance(output_size, int):
+            self.output_size = output_size
+        else:
+            assert len(output_size) == 2
+            self.output_size = output_size
+
+    def __call__(self, sample):
+        img_d, img_l, img_r = sample['depth'], sample['left'], sample['right']
+
+        h, w = img_d.shape[:2]
+        new_h = np.random.randint(self.output_size, h)
+        new_w = new_h
+
+        top = np.random.randint(0, h - new_h)
+        left = np.random.randint(0, w - new_w)
+
+        img_d = img_d[top: top + new_h, left: left + new_w]
+        img_l = img_l[top: top + new_h, left: left + new_w]
+        img_r = img_r[top: top + new_h, left: left + new_w]
+        return {'depth': img_d, 'left': img_l, 'right': img_r}
 
 
 class Rescale(object):
@@ -34,43 +69,10 @@ class Rescale(object):
 
         new_h, new_w = int(new_h), int(new_w)
 
-        img_dn = transform.resize(img_d, (new_h, new_w))
-        img_ln = transform.resize(img_l, (new_h, new_w))
-        img_rn = transform.resize(img_r, (new_h, new_w))
-
-        return {'depth': img_dn, 'left': img_ln, 'right': img_rn}
-
-
-class RandomCrop(object):
-    """Crop randomly the image in a sample.
-
-    Args:
-        output_size (tuple or int): Desired output size. If int, square crop
-            is made.
-    """
-
-    def __init__(self, output_size):
-        assert isinstance(output_size, (int, tuple))
-        if isinstance(output_size, int):
-            self.output_size = (output_size, output_size)
-        else:
-            assert len(output_size) == 2
-            self.output_size = output_size
-
-    def __call__(self, sample):
-        img_d, img_l, img_r = sample['depth'], sample['left'], sample['right']
-
-        h, w = img_d.shape[:2]
-        new_h, new_w = self.output_size
-
-        top = np.random.randint(0, h - new_h)
-        left = np.random.randint(0, w - new_w)
-
-        img_dn = img_d[top: top + new_h, left: left + new_w]
-        img_ln = img_l[top: top + new_h, left: left + new_w]
-        img_rn = img_r[top: top + new_h, left: left + new_w]
-
-        return {'depth': img_dn, 'left': img_ln, 'right': img_rn}
+        img_d = cv2.resize(img_d, (new_h, new_w))
+        img_l = cv2.resize(img_l, (new_h, new_w))
+        img_r = cv2.resize(img_r, (new_h, new_w))
+        return {'depth': img_d, 'left': img_l, 'right': img_r}
 
 
 class ToTensor(object):
@@ -79,13 +81,12 @@ class ToTensor(object):
     def __call__(self, sample):
         img_d, img_l, img_r = sample['depth'], sample['left'], sample['right']
 
-        img_dn = torch.from_numpy(img_d.astype(np.float32))  # depth image has no channel
-        img_dn = normalize_depth(img_dn)
+        img_dn = torch.from_numpy(img_d.astype(np.float32)).mul(d2)  # depth image has no channel
         img_ln = img_l.astype(np.float32).transpose((2, 0, 1))
         img_rn = img_r.astype(np.float32).transpose((2, 0, 1))
         return {'depth': img_dn.unsqueeze(0),
-                'left': torch.from_numpy(img_ln),
-                'right': torch.from_numpy(img_rn)}
+                'left': torch.from_numpy(img_ln).mul(d1),
+                'right': torch.from_numpy(img_rn).mul(d1)}
 
 
 class FATDataset(Dataset):
@@ -142,14 +143,14 @@ class FATDataset(Dataset):
 
 def normalize_depth(depth):
     """
-    Normalize the uint16 depth into range [-0.5, 0.5]
+    Normalize the uint16 depth into range [0, 1]
     :param depth: input depth image
     :return: normalized depth image
     """
     v_min = torch.min(depth)
     v_range = torch.max(depth) - v_min
     if v_range > 0:
-        norm = (depth - v_min) / v_range - 0.5
+        norm = (depth - v_min) / v_range
     else:
         norm = torch.zeros(depth.size())
     return norm
@@ -162,9 +163,8 @@ def custom_save_img(tensor, filename, n_row=8, padding=2):
     """
     from PIL import Image
     tensor = tensor.cpu()
-    tensor = normalize_depth(tensor)
     grid = make_grid(tensor, nrow=n_row, padding=padding)
-    nd_arr = grid.add(0.5).mul(255.).byte().transpose(0, 2).transpose(0, 1).numpy()
+    nd_arr = grid.byte().transpose(0, 2).transpose(0, 1).numpy()
     # nd_arr = cv2.applyColorMap(nd_arr, cv2.COLORMAP_PARULA)
     im = Image.fromarray(nd_arr)
     im.save(filename)
