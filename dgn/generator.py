@@ -12,7 +12,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Normal, kl_divergence
-from dataset import normalize_depth
 
 SCALE = 4  # Scale of image generation process
 
@@ -153,7 +152,7 @@ class GeneratorNetwork(nn.Module):
 
         y_mu = self.observation_density(u)
 
-        return normalize_depth(y_mu), kl
+        return y_mu, kl
 
     def sample(self, r):
         """

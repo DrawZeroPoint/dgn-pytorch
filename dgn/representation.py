@@ -38,7 +38,7 @@ class TowerRepresentation(nn.Module):
         :return: representation
         """
         # First skip-connected conv block
-        skip_in = F.relu(self.bn(self.conv1(x)))
+        skip_in = F.relu(self.conv1(x))
         skip_out = F.relu(self.conv2(skip_in))
 
         x = F.relu(self.conv3(skip_in))

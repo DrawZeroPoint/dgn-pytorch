@@ -14,7 +14,7 @@ from torch.utils.data import DataLoader
 from torchvision.transforms import Compose
 
 from dgn import DepthGenerativeNetwork
-from dataset import custom_save_img
+from dataset import custom_save_img, normalize_depth
 from dataset import FATDataset, Rescale, RandomCrop, ToTensor
 import pendulum
 
@@ -22,7 +22,7 @@ import pendulum
 cuda = torch.cuda.is_available()
 device = torch.device("cuda:1" if cuda else "cpu")
 
-commit = '0.4'
+commit = '0.5'
 save_dir = './log-{}'.format(commit)
 fine_tune = 'none'
 batch_size = 8
@@ -36,6 +36,7 @@ if __name__ == '__main__':
           " - fine_tune model: {}\n"
           " - batch_size: {}\n"
           " - corp_size: {}\n".format(commit, fine_tune, batch_size, crop_size))
+    print(" - note: min max depth, rgb mul 1/255, no batch norm")
 
     print(pendulum.now())
 
@@ -103,20 +104,23 @@ if __name__ == '__main__':
 
             s += 1
 
-            # Keep a checkpoint every 100 steps
-            if s % (gradient_steps / 10) == 0:
+            # Keep a checkpoint every 1000 steps
+            if s % 1000 == 0:
                 torch.save(model, os.path.join(save_dir, "model-{}.pt".format(s)))
                 print("model-{}.pt saved.".format(s))
 
-            with torch.no_grad():
-                if s % (gradient_steps / 10000) == 0:
+            # Annealing the parameters every 100 steps
+            if s % 100 == 0:
+                with torch.no_grad():
                     print("|Steps: {}\t|NLL: {}\t|KL: {}\t|".format(s, reconstruction.item(), kl_divergence.item()))
-                    img_show = torch.cat([img_d_q.mul(255.0), img_d_mu.mul(255.0)], 0)
-                    custom_save_img(img_show, os.path.join(save_dir, "result_{}.png".format(s)))
 
-                # Anneal learning rate
-                mu = max(mu_f + (mu_i - mu_f) * (1 - s / (1.6 * 10 ** 6)), mu_f)
-                optimizer.lr = mu * math.sqrt(1 - 0.999 ** s) / (1 - 0.9 ** s)
+                    if s % 500 == 0:
+                        img_show = torch.cat([img_d_q, normalize_depth(img_d_mu)], 0)
+                        custom_save_img(img_show, os.path.join(save_dir, "result_{}.png".format(s)))
 
-                # Anneal pixel variance
-                sigma = max(sigma_f + (sigma_i - sigma_f) * (1 - s / (2 * 10 ** 5)), sigma_f)
+                    # Anneal learning rate
+                    mu = max(mu_f + (mu_i - mu_f) * (1 - s / (1.6 * 10 ** 6)), mu_f)
+                    optimizer.lr = mu * math.sqrt(1 - 0.999 ** s) / (1 - 0.9 ** s)
+
+                    # Anneal pixel variance
+                    sigma = max(sigma_f + (sigma_i - sigma_f) * (1 - s / (2 * 10 ** 5)), sigma_f)

@@ -7,7 +7,6 @@ from torchvision.utils import make_grid
 import cv2
 
 d1 = 0.0039215686
-d2 = 0.000015259
 
 
 class RandomCrop(object):
@@ -80,13 +79,13 @@ class ToTensor(object):
 
     def __call__(self, sample):
         img_d, img_l, img_r = sample['depth'], sample['left'], sample['right']
-
-        img_dn = torch.from_numpy(img_d.astype(np.float32)).mul(d2)  # depth image has no channel
-        img_ln = img_l.astype(np.float32).transpose((2, 0, 1))
-        img_rn = img_r.astype(np.float32).transpose((2, 0, 1))
-        return {'depth': img_dn.unsqueeze(0),
-                'left': torch.from_numpy(img_ln).mul(d1),
-                'right': torch.from_numpy(img_rn).mul(d1)}
+        img_d = torch.from_numpy(img_d.astype(np.float32))  # depth image has no channel
+        img_d = normalize_depth(img_d)
+        img_l = img_l.astype(np.float32).transpose((2, 0, 1))
+        img_r = img_r.astype(np.float32).transpose((2, 0, 1))
+        return {'depth': img_d.unsqueeze(0),
+                'left': torch.from_numpy(img_l).mul(d1),
+                'right': torch.from_numpy(img_r).mul(d1)}
 
 
 class FATDataset(Dataset):
@@ -153,7 +152,7 @@ def normalize_depth(depth):
         norm = (depth - v_min) / v_range
     else:
         norm = torch.zeros(depth.size())
-    return norm
+    return norm.clamp(0.0, 1.0)
 
 
 def custom_save_img(tensor, filename, n_row=8, padding=2):
@@ -164,7 +163,7 @@ def custom_save_img(tensor, filename, n_row=8, padding=2):
     from PIL import Image
     tensor = tensor.cpu()
     grid = make_grid(tensor, nrow=n_row, padding=padding)
-    nd_arr = grid.byte().transpose(0, 2).transpose(0, 1).numpy()
+    nd_arr = grid.mul(255).byte().transpose(0, 2).transpose(0, 1).numpy()
     # nd_arr = cv2.applyColorMap(nd_arr, cv2.COLORMAP_PARULA)
     im = Image.fromarray(nd_arr)
     im.save(filename)
