@@ -50,7 +50,7 @@ class _Transition(nn.Sequential):
         self.add_module('relu', nn.ReLU(inplace=True))
         self.add_module('conv', nn.Conv2d(num_input_features, num_output_features,
                                           kernel_size=1, bias=False))
-        self.add_module('pool', nn.AvgPool2d(kernel_size=2, stride=2))
+        self.add_module('pool', nn.AvgPool2d(kernel_size=2, stride=1))
 
 
 class _DenseBlock(nn.Module):
@@ -86,21 +86,21 @@ class DenseRepresentation(nn.Module):
         drop_rate (float) - dropout rate after each dense layer
         efficient (bool) - set to True to use checkpointing. Much more memory efficient, but slower.
     """
-    def __init__(self, growth_rate=12, block_config=(16, 16, 16), compression=0.5,
+    def __init__(self, n_channels, growth_rate=12, block_config=(12, 12), compression=0.5,
                  num_init_features=24, bn_size=4, drop_rate=0, efficient=False):
 
         super(DenseRepresentation, self).__init__()
-        assert 0 < compression <= 1, 'compression of densenet should be between 0 and 1'
+        assert 0. < compression <= 1, 'compression of dense net should be between 0 and 1'
 
         # First convolution
         self.features = nn.Sequential(OrderedDict([
-            ('conv0', nn.Conv2d(3, num_init_features, kernel_size=7, stride=2, padding=3, bias=False)),
+            ('conv0', nn.Conv2d(n_channels, num_init_features, kernel_size=7, stride=2, padding=1, bias=False)),
         ]))
         self.features.add_module('norm0', nn.BatchNorm2d(num_init_features))
         self.features.add_module('relu0', nn.ReLU(inplace=True))
         self.features.add_module('pool0', nn.MaxPool2d(kernel_size=3, stride=2, padding=1))
 
-        # Each denseblock
+        # Each dense block
         num_features = num_init_features
         for i, num_layers in enumerate(block_config):
             block = _DenseBlock(
@@ -122,6 +122,8 @@ class DenseRepresentation(nn.Module):
         # Final batch norm
         self.features.add_module('norm_final', nn.BatchNorm2d(num_features))
 
+        self.conv8 = nn.Conv2d(228, 256, kernel_size=1, stride=1, padding=1)
+
         # Initialization
         for name, param in self.named_parameters():
             if 'conv' in name and 'weight' in name:
@@ -139,4 +141,5 @@ class DenseRepresentation(nn.Module):
         """
         features = self.features(x)
         out = F.relu(features, inplace=True)
+        out = F.relu(self.conv8(out))
         return out

@@ -20,9 +20,9 @@ import pendulum
 
 
 cuda = torch.cuda.is_available()
-device = torch.device("cuda:1" if cuda else "cpu")
+device = torch.device("cuda:0" if cuda else "cpu")
 
-commit = '0.5'
+commit = '0.51'
 save_dir = './log-{}'.format(commit)
 fine_tune = 'none'
 batch_size = 8

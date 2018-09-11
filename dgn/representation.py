@@ -13,7 +13,6 @@ class TowerRepresentation(nn.Module):
 
         :param n_channels: number of color channels in input image
         :param r_dim: dimensions of representation
-        :param pool: whether to pool representation
         """
         super(TowerRepresentation, self).__init__()
         # Final representation size

@@ -23,8 +23,7 @@ class DepthGenerativeNetwork(nn.Module):
         super(DepthGenerativeNetwork, self).__init__()
         self.r_dim = r_dim
 
-        self.representation = TowerRepresentation(x_dim, r_dim)
-        self.dense_rep = DenseRepresentation()
+        self.representation = DenseRepresentation(x_dim)  # TowerRepresentation(x_dim, r_dim)
         self.generator = GeneratorNetwork(y_dim, r_dim, z_dim, h_dim, l_dim)
 
     def forward(self, depth, rgb_cat):
