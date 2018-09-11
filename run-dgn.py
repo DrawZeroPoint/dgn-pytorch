@@ -29,7 +29,7 @@ batch_size = 8
 crop_size = 240
 
 data_parallel = False
-gradient_steps = 50000
+gradient_steps = 2*10**5
 
 if __name__ == '__main__':
     print(" - Train id: {}\n"
@@ -62,8 +62,7 @@ if __name__ == '__main__':
             model = model.module
     else:
         # Create model and optimizer
-        model = DepthGenerativeNetwork(x_dim=6, y_dim=1, r_dim=256, h_dim=128, z_dim=64,
-                                       l_dim=12).to(device)
+        model = DepthGenerativeNetwork(x_dim=6, y_dim=1, r_dim=256, h_dim=128, z_dim=64).to(device)
 
         # Model optimisations
         model = nn.DataParallel(model) if data_parallel else model
@@ -123,4 +122,4 @@ if __name__ == '__main__':
                     optimizer.lr = mu * math.sqrt(1 - 0.999 ** s) / (1 - 0.9 ** s)
 
                     # Anneal pixel variance
-                    sigma = max(sigma_f + (sigma_i - sigma_f) * (1 - s / (2 * 10 ** 5)), sigma_f)
+                    sigma = max(sigma_f + (sigma_i - sigma_f) * (1 - s / gradient_steps), sigma_f)

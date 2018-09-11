@@ -6,6 +6,7 @@ from torch.distributions import Normal
 
 from .representation import TowerRepresentation
 from .generator import GeneratorNetwork
+from densenet import DenseRepresentation
 
 
 class DepthGenerativeNetwork(nn.Module):
@@ -23,6 +24,7 @@ class DepthGenerativeNetwork(nn.Module):
         self.r_dim = r_dim
 
         self.representation = TowerRepresentation(x_dim, r_dim)
+        self.dense_rep = DenseRepresentation()
         self.generator = GeneratorNetwork(y_dim, r_dim, z_dim, h_dim, l_dim)
 
     def forward(self, depth, rgb_cat):
