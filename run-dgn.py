@@ -22,14 +22,14 @@ import pendulum
 cuda = torch.cuda.is_available()
 device = torch.device("cuda:0" if cuda else "cpu")
 
-commit = '0.51'
+commit = '0.6'
 save_dir = './log-{}'.format(commit)
 fine_tune = 'none'
-batch_size = 8
-crop_size = 240
+batch_size = 6
+crop_size = 244
 
 data_parallel = False
-gradient_steps = 2*10**5
+gradient_steps = 10**5
 
 if __name__ == '__main__':
     print(" - Train id: {}\n"
