@@ -45,7 +45,7 @@ if __name__ == '__main__':
         tuned += int(fine_tune)
 
     train_set = FATDataset("./dataset/fat", "train",
-                           trans=Compose([RandomCrop(crop_size), Rescale(crop_size), ToTensor(), RandomVerticalFlip()]))
+                           trans=Compose([RandomCrop(crop_size), Rescale(crop_size), RandomVerticalFlip(), ToTensor()]))
 
     dataloader = DataLoader(train_set, batch_size, shuffle=True, num_workers=2)
 

@@ -1,7 +1,6 @@
 import os
 import numpy as np
 import random
-from PIL import Image
 import torch
 from skimage import io
 from torch.utils.data import Dataset
@@ -14,10 +13,14 @@ d1 = 0.0039215686
 class RandomVerticalFlip(object):
     """Randomly horizontally flips the given PIL.Image with a probability of 0.5
     """
-    def __call__(self, img):
+    def __call__(self, sample):
+        img_d, img_l, img_r = sample['depth'], sample['left'], sample['right']
+        img_d = np.expand_dims(img_d, 2)
         if random.random() < 0.5:
-            return img.transpose(Image.FLIP_TOP_BOTTOM)
-        return img
+            sample['left'] = cv2.flip(img_l, 0)
+            sample['right'] = cv2.flip(img_r, 0)
+            sample['depth'] = cv2.flip(img_d, 0)
+        return {'depth': img_d, 'left': img_l, 'right': img_r}
 
 
 class RandomCrop(object):
@@ -90,13 +93,14 @@ class ToTensor(object):
 
     def __call__(self, sample):
         img_d, img_l, img_r = sample['depth'], sample['left'], sample['right']
-        img_d = torch.from_numpy(img_d.astype(np.float32))  # depth image has no channel
+
+        img_d = torch.from_numpy(img_d.transpose((2, 0, 1)).astype(np.float32))  # depth image has no channel
         img_d = normalize_depth(img_d)
+
         img_l = img_l.astype(np.float32).transpose((2, 0, 1))
         img_r = img_r.astype(np.float32).transpose((2, 0, 1))
-        return {'depth': img_d.unsqueeze(0),
-                'left': torch.from_numpy(img_l).mul(d1),
-                'right': torch.from_numpy(img_r).mul(d1)}
+
+        return {'depth': img_d, 'left': torch.from_numpy(img_l).mul(d1), 'right': torch.from_numpy(img_r).mul(d1)}
 
 
 class FATDataset(Dataset):
