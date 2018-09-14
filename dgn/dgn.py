@@ -23,7 +23,7 @@ class DepthGenerativeNetwork(nn.Module):
         super(DepthGenerativeNetwork, self).__init__()
         self.r_dim = r_dim
 
-        self.representation = DenseRepresentation(x_dim)  # TowerRepresentation(x_dim, r_dim)
+        self.representation = TowerRepresentation(x_dim, r_dim)  # DenseRepresentation(x_dim)
         self.generator = GeneratorNetwork(y_dim, r_dim, z_dim, h_dim, l_dim)
 
     def forward(self, depth, rgb_cat):
@@ -43,12 +43,13 @@ class DepthGenerativeNetwork(nn.Module):
         # for computing error
         return [y_mu, y_q, kl]
 
-    def sample(self, rgb_cat, sigma=2.0):
+    def sample(self, rgb_cat, sigma=0.7):
         """
         Sample from the network given some context and viewpoint.
         :param rgb_cat: batch of color images [b, 6, h, w]
         :param sigma: pixel variance
         """
         phi = self.representation(rgb_cat)
-        y_mu = self.generator.sample(phi)
-        return y_mu
+        d_mu = self.generator.sample(phi)
+        d_sample = d_mu  # Normal(d_mu, sigma).sample()
+        return d_sample

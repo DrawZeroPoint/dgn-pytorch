@@ -1,5 +1,7 @@
 import os
 import numpy as np
+import random
+from PIL import Image
 import torch
 from skimage import io
 from torch.utils.data import Dataset
@@ -7,6 +9,15 @@ from torchvision.utils import make_grid
 import cv2
 
 d1 = 0.0039215686
+
+
+class RandomVerticalFlip(object):
+    """Randomly horizontally flips the given PIL.Image with a probability of 0.5
+    """
+    def __call__(self, img):
+        if random.random() < 0.5:
+            return img.transpose(Image.FLIP_TOP_BOTTOM)
+        return img
 
 
 class RandomCrop(object):

@@ -175,10 +175,9 @@ class GeneratorNetwork(nn.Module):
             # Prior sample
             z = prior_distribution.sample()
 
-            # Calculate u rz or zr ?
-            hidden_g, cell_g = self.generator_core(torch.cat([z, r], dim=1), [hidden_g, cell_g])
+            hidden_g, cell_g = self.generator_core(torch.cat([r, z], dim=1), [hidden_g, cell_g])
             u = self.upsample(hidden_g) + u
 
-        y_mu = self.observation_density(u)
+        d_mu = self.observation_density(u)
 
-        return y_mu
+        return d_mu

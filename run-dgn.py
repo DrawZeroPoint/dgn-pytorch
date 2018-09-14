@@ -1,7 +1,7 @@
 """
 run-dgn.py
 
-Script to train the a GDN on the FAT fat_dataset.
+Script to train the DGN on the FAT fat_dataset.
 """
 
 import os
@@ -15,21 +15,21 @@ from torchvision.transforms import Compose
 
 from dgn import DepthGenerativeNetwork
 from dataset import custom_save_img, normalize_depth
-from dataset import FATDataset, Rescale, RandomCrop, ToTensor
+from dataset import FATDataset, Rescale, RandomCrop, ToTensor, RandomVerticalFlip
 import pendulum
 
 
 cuda = torch.cuda.is_available()
 device = torch.device("cuda:0" if cuda else "cpu")
 
-commit = '0.6'
+commit = '0.5'
 save_dir = './log-{}'.format(commit)
-fine_tune = 'none'
-batch_size = 6
-crop_size = 244
+fine_tune = '77000'
+batch_size = 8
+crop_size = 240
 
 data_parallel = False
-gradient_steps = 10**5
+gradient_steps = 2*10**5
 
 if __name__ == '__main__':
     print(" - Train id: {}\n"
@@ -40,8 +40,12 @@ if __name__ == '__main__':
 
     print(pendulum.now())
 
+    tuned = 0
+    if fine_tune != 'none':
+        tuned += int(fine_tune)
+
     train_set = FATDataset("./dataset/fat", "train",
-                           trans=Compose([RandomCrop(crop_size), Rescale(crop_size), ToTensor()]))
+                           trans=Compose([RandomCrop(crop_size), Rescale(crop_size), ToTensor(), RandomVerticalFlip()]))
 
     dataloader = DataLoader(train_set, batch_size, shuffle=True, num_workers=2)
 
@@ -55,7 +59,7 @@ if __name__ == '__main__':
     if not os.path.exists(save_dir):
         os.mkdir(save_dir)
 
-    model_path = os.path.join(".", fine_tune)
+    model_path = os.path.join("./log-{}".format(commit), "model-{}.pt".format(fine_tune))
     if os.path.exists(model_path):
         model = torch.load(model_path, map_location=lambda storage, _: storage).to(device)
         if type(model) is nn.DataParallel:
@@ -105,21 +109,23 @@ if __name__ == '__main__':
 
             # Keep a checkpoint every 1000 steps
             if s % 1000 == 0:
-                torch.save(model, os.path.join(save_dir, "model-{}.pt".format(s)))
-                print("model-{}.pt saved.".format(s))
+                torch.save(model, os.path.join(save_dir, "model-{}.pt".format(s+tuned)))
+                print("model-{}.pt saved.".format(s+tuned))
 
             # Annealing the parameters every 100 steps
             if s % 100 == 0:
                 with torch.no_grad():
-                    print("|Steps: {}\t|NLL: {}\t|KL: {}\t|".format(s, reconstruction.item(), kl_divergence.item()))
+                    print("|Steps: {}\t|NLL: {}\t|KL: {}\t|sigma: {}\t|".format(s+tuned, reconstruction.item(),
+                                                                                kl_divergence.item(), sigma))
 
                     if s % 500 == 0:
                         img_show = torch.cat([img_d_q, normalize_depth(img_d_mu)], 0)
-                        custom_save_img(img_show, os.path.join(save_dir, "result_{}.png".format(s)))
+                        custom_save_img(img_show, os.path.join(save_dir, "result_{}.png".format(s+tuned)),
+                                        n_row=batch_size)
 
                     # Anneal learning rate
-                    mu = max(mu_f + (mu_i - mu_f) * (1 - s / (1.6 * 10 ** 6)), mu_f)
-                    optimizer.lr = mu * math.sqrt(1 - 0.999 ** s) / (1 - 0.9 ** s)
+                    mu = max(mu_f + (mu_i - mu_f) * (1 - (s+tuned) / (1.6 * 10 ** 6)), mu_f)
+                    optimizer.lr = mu * math.sqrt(1 - 0.999 ** (s+tuned)) / (1 - 0.9 ** (s+tuned))
 
                     # Anneal pixel variance
-                    sigma = max(sigma_f + (sigma_i - sigma_f) * (1 - s / gradient_steps), sigma_f)
+                    sigma = max(sigma_f + (sigma_i - sigma_f) * (1 - (s+tuned) / gradient_steps), sigma_f)
