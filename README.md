@@ -1,3 +1,7 @@
+<div align="center">
+<img src="https://github.com/DrawZeroPoint/dgn-pytorch/blob/master/dong1.png" width="800" alt="HoPE" />
+</div>
+
 # dgn-pytorch
 Code for the paper: Depth Generation Network (DGN): Estimating Real World Depth from Stereo and Depth Images
 
@@ -14,3 +18,9 @@ the likelihood of the distribution over the generated
 depth, and given the synthetic ground truth, we follow
 the Expectation-Maximization scheme to organize and
 optimize the proposed model. The resulting model can estimate the relative depth of the scene with a pair of uncalibrated stereo images.
+
+## Cite
+If you referred or used HoPE in your article, please consider citing:
+```
+
+```
