@@ -20,7 +20,7 @@ the Expectation-Maximization scheme to organize and
 optimize the proposed model. The resulting model can estimate the relative depth of the scene with a pair of uncalibrated stereo images.
 
 ## Cite
-If you referred or used HoPE in your article, please consider citing:
+If you referred or used DGN in your article, please consider citing:
 ```
 @inproceedings{dong2019depth,
   title={Depth Generation Network: Estimating Real World Depth from Stereo and Depth Images},
