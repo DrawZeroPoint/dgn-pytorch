@@ -22,5 +22,12 @@ optimize the proposed model. The resulting model can estimate the relative depth
 ## Cite
 If you referred or used HoPE in your article, please consider citing:
 ```
-
+@inproceedings{dong2019depth,
+  title={Depth Generation Network: Estimating Real World Depth from Stereo and Depth Images},
+  author={Dong, Zhipeng and Gao, Yi and Ren, Qinyuan and Yan, Yunhui and Chen, Fei},
+  booktitle={2019 International Conference on Robotics and Automation (ICRA)},
+  pages={7201--7206},
+  year={2019},
+  organization={IEEE}
+}
 ```
